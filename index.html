@@ -128,7 +128,7 @@
 <body>
   <header>
     <h1>Carrera Urbana 2025</h1>
-    <p>Corre Talcahuano. Sigue tu ritmo.</p>
+    <p>Corre la ciudad. Sigue tu ritmo.</p>
   </header>
 
   <nav>
@@ -141,6 +141,7 @@
   <div id="pantalla-registro" class="pantalla visible">
     <h2>Inscripción de Participantes</h2>
     <input type="text" id="nombre" placeholder="Nombre del participante" />
+    <input type="password" id="codigo" placeholder="Código de autorización" />
     <button onclick="registrar()">Registrar y generar QR</button>
     <div id="resultado"></div>
     <div id="qrcode"></div>
@@ -156,7 +157,11 @@
     <input type="text" id="hito-nombre" placeholder="Nombre del hito" />
     <input type="number" id="hito-lat" step="any" placeholder="Latitud" />
     <input type="number" id="hito-lon" step="any" placeholder="Longitud" />
+    <input type="password" id="hito-codigo" placeholder="Código de autorización" />
     <button onclick="agregarHito()">Agregar Hito</button>
+    <div id="lista-hitos">
+      <h3>Hitos agregados:</h3>
+    </div>
   </div>
 
   <div id="pantalla-panel" class="pantalla">
@@ -171,7 +176,7 @@
   <script>
     let contador = 1;
     const participantes = {};
-    const colores = ["#ff6600", "#ff944d", "#ffcc99", "#ff3300", "#cc5200"];
+    const colores = ["#ff944d", "#ffcc99", "#ff3300", "#cc5200"];
     const hitos = [];
     const map = L.map("map").setView([-33.4372, -70.6506], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -189,7 +194,11 @@
 
     function registrar() {
       const nombre = document.getElementById("nombre").value.trim();
-      if (!nombre) return;
+      const codigo = document.getElementById("codigo").value.trim();
+      if (!nombre || codigo !== "300309") {
+        alert("Nombre vacío o código incorrecto.");
+        return;
+      }
 
       const id = "P" + String(contador).padStart(3, "0");
       const color = colores[(contador - 1) % colores.length];
@@ -230,6 +239,7 @@
       document.getElementById("log").appendChild(entry);
 
       document.getElementById("nombre").value = "";
+      document.getElementById("codigo").value = "";
       contador++;
       iniciarGPS(id);
     }
@@ -247,8 +257,13 @@
             const d = distanciaMetros(lat, lon, hito.lat, hito.lon);
             if (d < 20 && !p.hitosCumplidos.has(hito.nombre)) {
               p.hitosCumplidos.add(hito.nombre);
+
+              const total = p.hitosCumplidos.size;
               const estado = document.getElementById(`estado-${id}`);
-              estado.innerHTML = `🟢 <strong>${id}</strong> - ${p.nombre} | Estado: <em>Alcanzó ${hito.nombre}</em>`;
+              estado.innerHTML = `🟢 <strong>${id}</strong> - ${p.nombre} | Estado: <em>${String(total).padStart(2, "0")} hito${total > 1 ? "s" : ""} alcanzado${total > 1 ? "s" : ""}</em>`;
+
+              const bip = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+              bip.play();
             }
           });
         },
@@ -276,7 +291,11 @@
       const nombre = document.getElementById("hito-nombre").value.trim();
       const lat = parseFloat(document.getElementById("hito-lat").value);
       const lon = parseFloat(document.getElementById("hito-lon").value);
-      if (!nombre || isNaN(lat) || isNaN(lon)) return;
+      const codigo = document.getElementById("hito-codigo").value.trim();
+      if (!nombre || isNaN(lat) || isNaN(lon) || codigo !== "300309") {
+        alert("Datos inválidos o código incorrecto.");
+        return;
+      }
 
       hitos.push({ nombre, lat, lon });
 
@@ -287,9 +306,16 @@
         fillOpacity: 0.5,
       }).bindPopup(nombre).addTo(map);
 
+      const lista = document.getElementById("lista-hitos");
+      const item = document.createElement("div");
+      item.className = "log-entry";
+      item.textContent = `${nombre} (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
+      lista.appendChild(item);
+
       document.getElementById("hito-nombre").value = "";
       document.getElementById("hito-lat").value = "";
       document.getElementById("hito-lon").value = "";
+      document.getElementById("hito-codigo").value = "";
     }
 
     window.addEventListener("DOMContentLoaded", () => {
@@ -298,7 +324,7 @@
       if (id) {
         mostrarPantalla("seguimiento");
 
-        const color = "#ff6600";
+        const color = "#ff0000"; // rojo exclusivo para corredor activo
         const marker = L.circleMarker([0, 0], {
           radius: 10,
           color: color,
