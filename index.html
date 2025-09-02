@@ -214,12 +214,14 @@
 
       const id = "P" + String(contador).padStart(3, "0");
       const color = colores[(contador - 1) % colores.length];
-      const marker = L.circleMarker([0, 0], {
-        radius: 10,
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.9,
-      }).addTo(map).bindPopup(`${id} - ${nombre}`);
+      const icono = L.divIcon({
+        className: 'marcador-personalizado',
+        html: `<div class="marcador-azul">${id}</div>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      });
+
+      const marker = L.marker([0, 0], { icon: icono }).addTo(map).bindPopup(`${id} - ${nombre}`);
 
       participantes[id] = {
         nombre,
@@ -253,7 +255,6 @@
       document.getElementById("nombre").value = "";
       document.getElementById("codigo").value = "";
       contador++;
-      iniciarGPS(id);
     }
 
     function iniciarGPS(id) {
@@ -272,7 +273,9 @@
 
               const total = p.hitosCumplidos.size;
               const estado = document.getElementById(`estado-${id}`);
-              estado.innerHTML = `🟢 <strong>${id}</strong> - ${p.nombre} | Estado: <em>${String(total).padStart(2, "0")} hito${total > 1 ? "s" : ""} alcanzado${total > 1 ? "s" : ""}</em>`;
+              if (estado) {
+                estado.innerHTML = `🟢 <strong>${id}</strong> - ${p.nombre} | Estado: <em>${String(total).padStart(2, "0")} hito${total > 1 ? "s" : ""} alcanzado${total > 1 ? "s" : ""}</em>`;
+              }
 
               const bip = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
               bip.play();
@@ -336,18 +339,16 @@
       if (id) {
         mostrarPantalla("seguimiento");
 
-        const iconoPersonalizado = L.divIcon({
-          className: 'marcador-personalizado',
-          html: `<div class="marcador-azul">${id}</div>`,
-          iconSize: [30, 30],
-          iconAnchor: [15, 15]
-        });
-
-        const marker = L.marker([0, 0], { icon: iconoPersonalizado }).addTo(map).bindPopup(`${id} (activo)`);
+        const marker = L.circleMarker([0, 0], {
+          radius: 10,
+          color: "#ff0000",
+          fillColor: "#ff0000",
+          fillOpacity: 0.9,
+        }).addTo(map).bindPopup(`${id} (activo)`);
 
         participantes[id] = {
           nombre: id,
-          color: "#007bff",
+          color: "#ff0000",
           marker,
           hitosCumplidos: new Set(),
         };
