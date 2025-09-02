@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Plataforma Carrera Urbana</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #111;
+      color: #eee;
+    }
+    .pantalla {
+      display: none;
+      padding: 20px;
+    }
+    .visible {
+      display: block;
+    }
+    button {
+      background-color: #00ff99;
+      color: #111;
+      border: none;
+      padding: 10px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #00cc77;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      background-color: #222;
+      color: #eee;
+      border: 1px solid #555;
+    }
+    #map {
+      height: 60vh;
+      width: 100%;
+      margin-top: 10px;
+    }
+    #panel {
+      background-color: #1a1a1a;
+      padding: 10px;
+      margin-top: 10px;
+    }
+    .log-entry {
+      font-size: 0.85em;
+      margin-bottom: 5px;
+      color: #ccc;
+    }
+    .log-entry strong {
+      color: #00ff99;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Pantalla de inscripción -->
+  <div id="pantalla-registro" class="pantalla visible">
+    <h2>Inscripción de Participantes</h2>
+    <label>Nombre del participante:</label>
+    <input type="text" id="nombre" placeholder="Ej: Rodrigo Pérez" />
+    <button onclick="registrar()">Registrar y seguir</button>
+    <div id="qr"></div>
+    <div id="lista"></div>
+  </div>
+
+  <!-- Pantalla de seguimiento -->
+  <div id="pantalla-seguimiento" class="pantalla">
+    <h2>Seguimiento en Tiempo Real</h2>
+    <div><strong>ID:</strong> <span id="pid">---</span></div>
+    <div><strong>Nombre:</strong> <span id="pname">---</span></div>
+    <div id="map"></div>
+
+    <div id="panel">
+      <h3>Agregar Hito Manual</h3>
+      <label>Nombre del hito:</label>
+      <input type="text" id="hito-nombre" />
+      <label>Latitud:</label>
+      <input type="number" id="hito-lat" step="any" />
+      <label>Longitud:</label>
+      <input type="number" id="hito-lon" step="any" />
+      <button onclick="agregarHito()">Agregar Hito</button>
+
+      <h3>Avances</h3>
+      <div id="log"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    let contador = 1;
+    let participanteID = "";
+    let participanteNombre = "";
+    const hitos = [];
+    const hitosCumplidos = new Set();
+
+    function registrar() {
+      const nombre = document.getElementById("nombre").value.trim();
+      if (!nombre) return;
+
+      participanteID = "P" + String(contador).padStart(3, "0");
+      participanteNombre = nombre;
+      contador++;
+
+      document.getElementById("pid").innerText = participanteID;
+      document.getElementById("pname").innerText = participanteNombre;
+
+      document.getElementById("pantalla-registro").classList.remove("visible");
+      document.getElementById("pantalla-seguimiento").classList.add("visible");
+
+      iniciarMapa();
+    }
+
+    function iniciarMapa() {
+      const map = L.map("map").setView([-33.4372, -70.6506], 15);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap",
+      }).addTo(map);
+
+      const participante = L.marker([0, 0], {
+        icon: L.icon({
+          iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
+          iconSize: [30, 30],
+          iconAnchor: [15, 30],
+        }),
+      }).addTo(map);
+
+      navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          participante.setLatLng([lat, lon]);
+          map.setView([lat, lon]);
+
+          hitos.forEach((hito) => {
+            const d = distanciaMetros(lat, lon, hito.lat, hito.lon);
+            if (d < 20 && !hitosCumplidos.has(hito.nombre)) {
+              hitosCumplidos.add(hito.nombre);
+              registrarHito(hito.nombre);
+            }
+          });
+        },
+        () => {
+          console.log("No se pudo obtener la ubicación.");
+        },
+        { enableHighAccuracy: true }
+      );
+    }
+
+    function distanciaMetros(lat1, lon1, lat2, lon2) {
+      const R = 6371e3;
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function agregarHito() {
+      const nombre = document.getElementById("hito-nombre").value;
+      const lat = parseFloat(document.getElementById("hito-lat").value);
+      const lon = parseFloat(document.getElementById("hito-lon").value);
+      if (!nombre || isNaN(lat) || isNaN(lon)) return;
+
+      hitos.push({ nombre, lat, lon });
+
+      const map = L.map("map");
+      L.circle([lat, lon], {
+        radius: 15,
+        color: "#ff0000",
+        fillColor: "#ff0000",
+        fillOpacity: 0.5,
+      }).bindPopup(nombre).addTo(map);
+
+      document.getElementById("hito-nombre").value = "";
+      document.getElementById("hito-lat").value = "";
+      document.getElementById("hito-lon").value = "";
+    }
+
+    function registrarHito(nombre) {
+      const entry = document.createElement("div");
+      entry.className = "log-entry";
+      entry.innerHTML = `✅ <strong>${nombre}</strong> alcanzado`;
+      document.getElementById("log").appendChild(entry);
+    }
+  </script>
+</body>
+</html>
