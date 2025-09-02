@@ -6,6 +6,8 @@
   <title>Carrera Urbana</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.3.1/firebase-database.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
     body {
@@ -184,11 +186,21 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
+    const firebaseConfig = {
+      apiKey: "TU_API_KEY",
+      authDomain: "running-3cd5f.firebaseapp.com",
+      databaseURL: "https://running-3cd5f-default-rtdb.firebaseio.com",
+      projectId: "running-3cd5f",
+      storageBucket: "running-3cd5f.appspot.com",
+      messagingSenderId: "TU_SENDER_ID",
+      appId: "TU_APP_ID"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
     let contador = 1;
     const participantes = {};
-    const colores = ["#ff944d", "#ffcc99", "#ff3300", "#cc5200"];
     const hitos = [];
     const map = L.map("map").setView([-33.4372, -70.6506], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -213,22 +225,12 @@
       }
 
       const id = "P" + String(contador).padStart(3, "0");
-      const color = colores[(contador - 1) % colores.length];
-      const icono = L.divIcon({
-        className: 'marcador-personalizado',
-        html: `<div class="marcador-azul">${id}</div>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15]
+      db.ref("corredores/" + id).set({
+        nombre: nombre,
+        lat: 0,
+        lon: 0,
+        hitos: []
       });
-
-      const marker = L.marker([0, 0], { icon: icono }).addTo(map).bindPopup(`${id} - ${nombre}`);
-
-      participantes[id] = {
-        nombre,
-        color,
-        marker,
-        hitosCumplidos: new Set(),
-      };
 
       const url = window.location.href.split('?')[0] + `?id=${id}`;
       document.getElementById("qrcode").innerHTML = "";
@@ -262,29 +264,24 @@
         (pos) => {
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;
-          const p = participantes[id];
-          p.marker.setLatLng([lat, lon]);
-          map.setView([lat, lon]);
+          db.ref("corredores/" + id).update({ lat, lon });
 
           hitos.forEach((hito) => {
             const d = distanciaMetros(lat, lon, hito.lat, hito.lon);
-            if (d < 20 && !p.hitosCumplidos.has(hito.nombre)) {
-              p.hitosCumplidos.add(hito.nombre);
-
-              const total = p.hitosCumplidos.size;
-              const estado = document.getElementById(`estado-${id}`);
-              if (estado) {
-                estado.innerHTML = `🟢 <strong>${id}</strong> - ${p.nombre} | Estado: <em>${String(total).padStart(2, "0")} hito${total > 1 ? "s" : ""} alcanzado${total > 1 ? "s" : ""}</em>`;
-              }
-
-              const bip = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-              bip.play();
+            if (d < 20) {
+              db.ref("corredores/" + id + "/hitos").once("value", snapshot => {
+                const hitosPrevios = snapshot.val() || [];
+                if (!hitosPrevios.includes(hito.nombre)) {
+                  const nuevos = [...hitosPrevios, hito.nombre];
+                  db.ref("corredores/" + id + "/hitos").set(nuevos);
+                  const bip = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+                  bip.play();
+                }
+              });
             }
           });
         },
-        () => {
-          console.log("No se pudo obtener la ubicación.");
-        },
+        () => console.log("No se pudo obtener la ubicación."),
         { enableHighAccuracy: true }
       );
     }
@@ -333,32 +330,44 @@
       document.getElementById("hito-codigo").value = "";
     }
 
+    // Mostrar corredores en tiempo real en la plataforma principal
+    db.ref("corredores").on("value", snapshot => {
+      const data = snapshot.val();
+      for (const id in data) {
+        const corredor = data[id];
+        if (!participantes[id]) {
+          const icono = L.divIcon({
+            className: 'marcador-personalizado',
+            html: `<div class="marcador-azul">${id}</div>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+          });
+          const marker = L.marker([corredor.lat, corredor.lon], { icon: icono }).addTo(map);
+          participantes[id] = { marker };
+        } else {
+          participantes[id].marker.setLatLng([corredor.lat, corredor.lon]);
+        }
+
+        const estado = document.getElementById(`estado-${id}`);
+        const total = corredor.hitos ? corredor.hitos.length : 0;
+        if (!estado) {
+          const entry = document.createElement("div");
+          entry.className = "log-entry";
+          entry.id = `estado-${id}`;
+          entry.innerHTML = `🟠 <strong>${id}</strong> - ${corredor.nombre} | Estado: <em>${String(total).padStart(2, "0")} hito${total !== 1 ? "s" : ""} alcanzado${total !== 1 ? "s" : ""}</em>`;
+          document.getElementById("log").appendChild(entry);
+        } else {
+          estado.innerHTML = `🟢 <strong>${id}</strong> - ${corredor.nombre} | Estado: <em>${String(total).padStart(2, "0")} hito${total !== 1 ? "s" : ""} alcanzado${total !== 1 ? "s" : ""}</em>`;
+        }
+      }
+    });
+
+    // Si es corredor activo (escaneó QR), iniciar GPS
     window.addEventListener("DOMContentLoaded", () => {
       const params = new URLSearchParams(window.location.search);
       const id = params.get("id");
       if (id) {
         mostrarPantalla("seguimiento");
-
-        const marker = L.circleMarker([0, 0], {
-          radius: 10,
-          color: "#ff0000",
-          fillColor: "#ff0000",
-          fillOpacity: 0.9,
-        }).addTo(map).bindPopup(`${id} (activo)`);
-
-        participantes[id] = {
-          nombre: id,
-          color: "#ff0000",
-          marker,
-          hitosCumplidos: new Set(),
-        };
-
-        const entry = document.createElement("div");
-        entry.className = "log-entry";
-        entry.id = `estado-${id}`;
-        entry.innerHTML = `🟠 <strong>${id}</strong> - ${id} | Estado: <em>Sin hitos alcanzados</em>`;
-        document.getElementById("log").appendChild(entry);
-
         iniciarGPS(id);
       }
     });
