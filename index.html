@@ -186,6 +186,7 @@
     </div>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     const firebaseConfig = {
       apiKey: "TU_API_KEY",
@@ -209,8 +210,7 @@
 
     function mostrarPantalla(id) {
       document.querySelectorAll(".pantalla").forEach(p => p.classList.remove("visible"));
-      const pantalla = document.getElementById("pantalla-" + id);
-      pantalla.classList.add("visible");
+      document.getElementById("pantalla-" + id).classList.add("visible");
       if (id === "seguimiento") {
         setTimeout(() => map.invalidateSize(), 300);
       }
@@ -330,7 +330,6 @@
       document.getElementById("hito-codigo").value = "";
     }
 
-    // Mostrar corredores en tiempo real en la plataforma principal
     db.ref("corredores").on("value", snapshot => {
       const data = snapshot.val();
       for (const id in data) {
@@ -362,7 +361,6 @@
       }
     });
 
-    // Si es corredor activo (escaneó QR), iniciar GPS
     window.addEventListener("DOMContentLoaded", () => {
       const params = new URLSearchParams(window.location.search);
       const id = params.get("id");
