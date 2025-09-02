@@ -144,6 +144,9 @@
     <button onclick="registrar()">Registrar y generar QR</button>
     <div id="resultado"></div>
     <div id="qrcode"></div>
+    <div id="lista-inscritos">
+      <h3>Participantes inscritos:</h3>
+    </div>
   </div>
 
   <div id="pantalla-seguimiento" class="pantalla">
@@ -166,7 +169,7 @@
       <div id="log"></div>
     </div>
   </div>
-  
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     let contador = 1;
@@ -218,6 +221,12 @@
         <div class="log-entry">✅ <strong>${id}</strong> - ${nombre} registrado</div>
         <div class="log-entry">📱 Escanea el código QR para vincular tu teléfono:</div>
       `;
+
+      const lista = document.getElementById("lista-inscritos");
+      const nuevo = document.createElement("div");
+      nuevo.className = "log-entry";
+      nuevo.textContent = `${id} - ${nombre}`;
+      lista.appendChild(nuevo);
 
       document.getElementById("nombre").value = "";
       contador++;
@@ -283,6 +292,31 @@
       document.getElementById("hito-lat").value = "";
       document.getElementById("hito-lon").value = "";
     }
+
+    // Detectar si hay un corredor activo por URL
+    window.addEventListener("DOMContentLoaded", () => {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get("id");
+      if (id) {
+        const color = "#00ff99";
+        const marker = L.circleMarker([0, 0], {
+          radius: 10,
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.9,
+        }).addTo(map).bindPopup(`${id} (activo)`);
+
+        participantes[id] = {
+          nombre: id,
+          color,
+          marker,
+          hitosCumplidos: new Set(),
+        };
+
+        iniciarGPS(id);
+        mostrarPantalla("seguimiento");
+      }
+    });
   </script>
 </body>
 
