@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <title>Plataforma Carrera Urbana</title>
@@ -8,17 +9,20 @@
   <style>
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', sans-serif;
       background-color: #111;
       color: #eee;
     }
+
     .pantalla {
       display: none;
       padding: 20px;
     }
+
     .visible {
       display: block;
     }
+
     button {
       background-color: #00ff99;
       color: #111;
@@ -26,10 +30,13 @@
       padding: 10px;
       margin-top: 10px;
       cursor: pointer;
+      font-weight: bold;
     }
+
     button:hover {
       background-color: #00cc77;
     }
+
     input {
       width: 100%;
       padding: 8px;
@@ -38,43 +45,54 @@
       color: #eee;
       border: 1px solid #555;
     }
+
     #map {
       height: 60vh;
       width: 100%;
       margin-top: 10px;
+      border: 2px solid #00ff99;
     }
+
     #panel {
       background-color: #1a1a1a;
       padding: 10px;
       margin-top: 10px;
+      border: 1px solid #333;
     }
+
     .log-entry {
       font-size: 0.85em;
       margin-bottom: 5px;
       color: #ccc;
     }
+
     .log-entry strong {
       color: #00ff99;
     }
+
+    .participante-box {
+      padding: 5px;
+      margin: 5px 0;
+      background-color: #222;
+      border-left: 5px solid #00ff99;
+    }
   </style>
 </head>
+
 <body>
 
   <!-- Pantalla de inscripción -->
   <div id="pantalla-registro" class="pantalla visible">
-    <h2>Inscripción de Participantes</h2>
+    <h2>🏁 Inscripción de Participantes</h2>
     <label>Nombre del participante:</label>
     <input type="text" id="nombre" placeholder="Ej: Rodrigo Pérez" />
     <button onclick="registrar()">Registrar y seguir</button>
-    <div id="qr"></div>
     <div id="lista"></div>
   </div>
 
   <!-- Pantalla de seguimiento -->
   <div id="pantalla-seguimiento" class="pantalla">
-    <h2>Seguimiento en Tiempo Real</h2>
-    <div><strong>ID:</strong> <span id="pid">---</span></div>
-    <div><strong>Nombre:</strong> <span id="pname">---</span></div>
+    <h2>📍 Seguimiento en Tiempo Real</h2>
     <div id="map"></div>
 
     <div id="panel">
@@ -95,54 +113,66 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     let contador = 1;
-    let participanteID = "";
-    let participanteNombre = "";
+    const participantes = {};
+    const colores = ["#00ff99", "#ff4444", "#3399ff", "#ffcc00", "#cc66ff"];
     const hitos = [];
-    const hitosCumplidos = new Set();
+    const map = L.map("map").setView([-33.4372, -70.6506], 15);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap",
+    }).addTo(map);
 
     function registrar() {
       const nombre = document.getElementById("nombre").value.trim();
       if (!nombre) return;
 
-      participanteID = "P" + String(contador).padStart(3, "0");
-      participanteNombre = nombre;
-      contador++;
+      const id = "P" + String(contador).padStart(3, "0");
+      const color = colores[(contador - 1) % colores.length];
+      const marker = L.circleMarker([0, 0], {
+        radius: 10,
+        color: color,
+        fillColor: color,
+        fillOpacity: 0.9,
+      }).addTo(map).bindPopup(`${id} - ${nombre}`);
 
-      document.getElementById("pid").innerText = participanteID;
-      document.getElementById("pname").innerText = participanteNombre;
+      participantes[id] = {
+        nombre,
+        color,
+        marker,
+        hitosCumplidos: new Set(),
+        log: [],
+      };
+
+      const box = document.createElement("div");
+      box.className = "participante-box";
+      box.innerHTML = `<strong>${id}</strong> - ${nombre}`;
+      document.getElementById("lista").appendChild(box);
+
+      contador++;
+      document.getElementById("nombre").value = "";
 
       document.getElementById("pantalla-registro").classList.remove("visible");
       document.getElementById("pantalla-seguimiento").classList.add("visible");
 
-      iniciarMapa();
+      iniciarGPS(id);
     }
 
-    function iniciarMapa() {
-      const map = L.map("map").setView([-33.4372, -70.6506], 15);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap",
-      }).addTo(map);
-
-      const participante = L.marker([0, 0], {
-        icon: L.icon({
-          iconUrl: "https://cdn-icons-png.flaticon.com/512/684/684908.png",
-          iconSize: [30, 30],
-          iconAnchor: [15, 30],
-        }),
-      }).addTo(map);
-
+    function iniciarGPS(id) {
       navigator.geolocation.watchPosition(
         (pos) => {
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;
-          participante.setLatLng([lat, lon]);
+          const p = participantes[id];
+          p.marker.setLatLng([lat, lon]);
           map.setView([lat, lon]);
 
           hitos.forEach((hito) => {
             const d = distanciaMetros(lat, lon, hito.lat, hito.lon);
-            if (d < 20 && !hitosCumplidos.has(hito.nombre)) {
-              hitosCumplidos.add(hito.nombre);
-              registrarHito(hito.nombre);
+            if (d < 20 && !p.hitosCumplidos.has(hito.nombre)) {
+              p.hitosCumplidos.add(hito.nombre);
+              const entry = document.createElement("div");
+              entry.className = "log-entry";
+              entry.innerHTML = `✅ <strong>${id}</strong> (${p.nombre}) alcanzó <strong>${hito.nombre}</strong>`;
+              document.getElementById("log").appendChild(entry);
             }
           });
         },
@@ -174,7 +204,6 @@
 
       hitos.push({ nombre, lat, lon });
 
-      const map = L.map("map");
       L.circle([lat, lon], {
         radius: 15,
         color: "#ff0000",
@@ -186,13 +215,7 @@
       document.getElementById("hito-lat").value = "";
       document.getElementById("hito-lon").value = "";
     }
-
-    function registrarHito(nombre) {
-      const entry = document.createElement("div");
-      entry.className = "log-entry";
-      entry.innerHTML = `✅ <strong>${nombre}</strong> alcanzado`;
-      document.getElementById("log").appendChild(entry);
-    }
   </script>
 </body>
+
 </html>
