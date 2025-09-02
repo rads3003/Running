@@ -122,13 +122,25 @@
       padding: 10px;
       width: fit-content;
     }
+
+    .marcador-azul {
+      background-color: #007bff;
+      color: white;
+      font-weight: bold;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      line-height: 30px;
+      text-align: center;
+      box-shadow: 0 0 5px #000;
+    }
   </style>
 </head>
 
 <body>
   <header>
     <h1>Carrera Urbana 2025</h1>
-    <p>Corre la ciudad. Sigue tu ritmo.</p>
+    <p>Corre Talcahuano. Sigue tu ritmo.</p>
   </header>
 
   <nav>
@@ -324,17 +336,18 @@
       if (id) {
         mostrarPantalla("seguimiento");
 
-        const color = "#ff0000"; // rojo exclusivo para corredor activo
-        const marker = L.circleMarker([0, 0], {
-          radius: 10,
-          color: color,
-          fillColor: color,
-          fillOpacity: 0.9,
-        }).addTo(map).bindPopup(`${id} (activo)`);
+        const iconoPersonalizado = L.divIcon({
+          className: 'marcador-personalizado',
+          html: `<div class="marcador-azul">${id}</div>`,
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
+        });
+
+        const marker = L.marker([0, 0], { icon: iconoPersonalizado }).addTo(map).bindPopup(`${id} (activo)`);
 
         participantes[id] = {
           nombre: id,
-          color,
+          color: "#007bff",
           marker,
           hitosCumplidos: new Set(),
         };
