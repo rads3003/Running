@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
   <meta charset="UTF-8" />
   <title>Carrera Urbana</title>
@@ -14,7 +13,22 @@
       background-color: #111;
       color: #eee;
     }
-
+    header {
+      background: url('https://images.unsplash.com/photo-1605296867304-46d5465a13f1?auto=format&fit=crop&w=1600&q=80') center/cover no-repeat;
+      padding: 60px 20px;
+      text-align: center;
+      color: white;
+    }
+    header h1 {
+      font-size: 2.5em;
+      margin: 0;
+      text-shadow: 2px 2px 4px #000;
+    }
+    header p {
+      font-size: 1.2em;
+      margin-top: 10px;
+      text-shadow: 1px 1px 3px #000;
+    }
     nav {
       background-color: #222;
       padding: 10px;
@@ -23,7 +37,6 @@
       gap: 20px;
       border-bottom: 2px solid #00ff99;
     }
-
     nav button {
       background: none;
       border: none;
@@ -32,24 +45,19 @@
       cursor: pointer;
       padding: 5px 10px;
     }
-
     nav button:hover {
       color: #00ff99;
       border-bottom: 2px solid #00ff99;
     }
-
     .pantalla {
       display: none;
       padding: 20px;
       text-align: center;
     }
-
     .visible {
       display: block;
     }
-
-    input,
-    button {
+    input, button {
       padding: 10px;
       margin: 10px 0;
       width: 80%;
@@ -58,31 +66,26 @@
       border: none;
       border-radius: 5px;
     }
-
     input {
       background-color: #222;
       color: #eee;
       border: 1px solid #555;
     }
-
     button {
       background-color: #00ff99;
       color: #111;
       font-weight: bold;
       cursor: pointer;
     }
-
     button:hover {
       background-color: #00cc77;
     }
-
     #map {
       height: 60vh;
       width: 100%;
       margin-top: 10px;
       border: 2px solid #00ff99;
     }
-
     #panel {
       background-color: #1a1a1a;
       padding: 10px;
@@ -90,17 +93,14 @@
       border: 1px solid #333;
       text-align: left;
     }
-
     .log-entry {
       font-size: 0.85em;
       margin-bottom: 5px;
       color: #ccc;
     }
-
     .log-entry strong {
       color: #00ff99;
     }
-
     #qrcode {
       margin: 20px auto;
       background: #fff;
@@ -109,8 +109,12 @@
     }
   </style>
 </head>
-
 <body>
+
+  <header>
+    <h1>Carrera Urbana 2025</h1>
+    <p>Corre la ciudad. Sigue tu ritmo.</p>
+  </header>
 
   <nav>
     <button onclick="mostrarPantalla('registro')">🏁 Inscripción</button>
@@ -229,19 +233,3 @@
       );
     }
 
-    function distanciaMetros(lat1, lon1, lat2, lon2) {
-      const R = 6371e3;
-      const φ1 = lat1 * Math.PI / 180;
-      const φ2 = lat2 * Math.PI / 180;
-      const Δφ = (lat2 - lat1) * Math.PI / 180;
-      const Δλ = (lon2 - lon1) * Math.PI / 180;
-      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ/2) * Math.sin(Δλ/2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c;
-    }
-
-    function agregarHito() {
-      const nombre = document.getElementById("hito-nombre").value;
-      const lat = parseFloat(document.getElementById("hito-l
