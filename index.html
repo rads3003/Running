@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <title>Carrera Urbana</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
     body {
@@ -12,22 +14,26 @@
       background-color: #111;
       color: #eee;
     }
+
     header {
       background: url('https://images.unsplash.com/photo-1605296867304-46d5465a13f1?auto=format&fit=crop&w=1600&q=80') center/cover no-repeat;
       padding: 60px 20px;
       text-align: center;
       color: white;
     }
+
     header h1 {
       font-size: 2.5em;
       margin: 0;
       text-shadow: 2px 2px 4px #000;
     }
+
     header p {
       font-size: 1.2em;
       margin-top: 10px;
       text-shadow: 1px 1px 3px #000;
     }
+
     nav {
       background-color: #222;
       padding: 10px;
@@ -36,6 +42,7 @@
       gap: 20px;
       border-bottom: 2px solid #00ff99;
     }
+
     nav button {
       background: none;
       border: none;
@@ -44,19 +51,24 @@
       cursor: pointer;
       padding: 5px 10px;
     }
+
     nav button:hover {
       color: #00ff99;
       border-bottom: 2px solid #00ff99;
     }
+
     .pantalla {
       display: none;
       padding: 20px;
       text-align: center;
     }
+
     .visible {
       display: block;
     }
-    input, button {
+
+    input,
+    button {
       padding: 10px;
       margin: 10px 0;
       width: 80%;
@@ -65,35 +77,55 @@
       border: none;
       border-radius: 5px;
     }
+
     input {
       background-color: #222;
       color: #eee;
       border: 1px solid #555;
     }
+
     button {
       background-color: #00ff99;
       color: #111;
       font-weight: bold;
       cursor: pointer;
     }
+
     button:hover {
       background-color: #00cc77;
     }
+
+    #map {
+      height: 60vh;
+      width: 100%;
+      margin-top: 10px;
+      border: 2px solid #00ff99;
+    }
+
+    #panel {
+      background-color: #1a1a1a;
+      padding: 10px;
+      margin-top: 10px;
+      border: 1px solid #333;
+      text-align: left;
+    }
+
+    .log-entry {
+      font-size: 0.9em;
+      margin-top: 10px;
+      color: #ccc;
+    }
+
     #qrcode {
       margin: 20px auto;
       background: #fff;
       padding: 10px;
       width: fit-content;
     }
-    .log-entry {
-      font-size: 0.9em;
-      margin-top: 10px;
-      color: #ccc;
-    }
   </style>
 </head>
-<body>
 
+<body>
   <header>
     <h1>Carrera Urbana 2025</h1>
     <p>Corre la ciudad. Sigue tu ritmo.</p>
@@ -102,6 +134,7 @@
   <nav>
     <button onclick="mostrarPantalla('registro')">🏁 Inscripción</button>
     <button onclick="mostrarPantalla('seguimiento')">📍 Seguimiento</button>
+    <button onclick="mostrarPantalla('hitos')">🧱 Hitos</button>
     <button onclick="mostrarPantalla('panel')">📊 Panel</button>
   </nav>
 
@@ -115,16 +148,35 @@
 
   <div id="pantalla-seguimiento" class="pantalla">
     <h2>Seguimiento en Tiempo Real</h2>
-    <p>Aquí irá el mapa y la ubicación del corredor.</p>
+    <div id="map"></div>
+  </div>
+
+  <div id="pantalla-hitos" class="pantalla">
+    <h2>Agregar Hitos Manualmente</h2>
+    <input type="text" id="hito-nombre" placeholder="Nombre del hito" />
+    <input type="number" id="hito-lat" step="any" placeholder="Latitud" />
+    <input type="number" id="hito-lon" step="any" placeholder="Longitud" />
+    <button onclick="agregarHito()">Agregar Hito</button>
   </div>
 
   <div id="pantalla-panel" class="pantalla">
     <h2>Panel de Control</h2>
-    <p>Aquí podrás agregar hitos y ver avances.</p>
+    <div id="panel">
+      <h3>Avances</h3>
+      <div id="log"></div>
+    </div>
   </div>
-
+  
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     let contador = 1;
+    const participantes = {};
+    const colores = ["#00ff99", "#ff4444", "#3399ff", "#ffcc00", "#cc66ff"];
+    const hitos = [];
+    const map = L.map("map").setView([-33.4372, -70.6506], 15);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap",
+    }).addTo(map);
 
     function mostrarPantalla(id) {
       document.querySelectorAll(".pantalla").forEach(p => p.classList.remove("visible"));
@@ -136,13 +188,22 @@
       if (!nombre) return;
 
       const id = "P" + String(contador).padStart(3, "0");
+      const color = colores[(contador - 1) % colores.length];
+      const marker = L.circleMarker([0, 0], {
+        radius: 10,
+        color: color,
+        fillColor: color,
+        fillOpacity: 0.9,
+      }).addTo(map).bindPopup(`${id} - ${nombre}`);
+
+      participantes[id] = {
+        nombre,
+        color,
+        marker,
+        hitosCumplidos: new Set(),
+      };
+
       const url = window.location.href.split('?')[0] + `?id=${id}`;
-
-      document.getElementById("resultado").innerHTML = `
-        <div class="log-entry">✅ <strong>${id}</strong> - ${nombre} registrado</div>
-        <div class="log-entry">📱 Escanea el código QR para vincular tu teléfono:</div>
-      `;
-
       document.getElementById("qrcode").innerHTML = "";
       new QRCode(document.getElementById("qrcode"), {
         text: url,
@@ -153,9 +214,76 @@
         correctLevel: QRCode.CorrectLevel.H
       });
 
+      document.getElementById("resultado").innerHTML = `
+        <div class="log-entry">✅ <strong>${id}</strong> - ${nombre} registrado</div>
+        <div class="log-entry">📱 Escanea el código QR para vincular tu teléfono:</div>
+      `;
+
       document.getElementById("nombre").value = "";
       contador++;
+      iniciarGPS(id);
+    }
+
+    function iniciarGPS(id) {
+      navigator.geolocation.watchPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const p = participantes[id];
+          p.marker.setLatLng([lat, lon]);
+          map.setView([lat, lon]);
+
+          hitos.forEach((hito) => {
+            const d = distanciaMetros(lat, lon, hito.lat, hito.lon);
+            if (d < 20 && !p.hitosCumplidos.has(hito.nombre)) {
+              p.hitosCumplidos.add(hito.nombre);
+              const entry = document.createElement("div");
+              entry.className = "log-entry";
+              entry.innerHTML = `🏃 <strong>${id}</strong> (${p.nombre}) alcanzó <strong>${hito.nombre}</strong>`;
+              document.getElementById("log").appendChild(entry);
+            }
+          });
+        },
+        () => {
+          console.log("No se pudo obtener la ubicación.");
+        },
+        { enableHighAccuracy: true }
+      );
+    }
+
+    function distanciaMetros(lat1, lon1, lat2, lon2) {
+      const R = 6371e3;
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) * Math.sin(Δλ/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function agregarHito() {
+      const nombre = document.getElementById("hito-nombre").value.trim();
+      const lat = parseFloat(document.getElementById("hito-lat").value);
+      const lon = parseFloat(document.getElementById("hito-lon").value);
+      if (!nombre || isNaN(lat) || isNaN(lon)) return;
+
+      hitos.push({ nombre, lat, lon });
+
+      L.circle([lat, lon], {
+        radius: 15,
+        color: "#ff0000",
+        fillColor: "#ff0000",
+        fillOpacity: 0.5,
+      }).bindPopup(nombre).addTo(map);
+
+      document.getElementById("hito-nombre").value = "";
+      document.getElementById("hito-lat").value = "";
+      document.getElementById("hito-lon").value = "";
     }
   </script>
 </body>
+
 </html>
