@@ -6,6 +6,7 @@
   <title>Plataforma Carrera Urbana</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
     body {
       margin: 0;
@@ -76,6 +77,18 @@
       background-color: #222;
       border-left: 5px solid #00ff99;
     }
+
+    #qr-container {
+      margin-top: 15px;
+      text-align: center;
+    }
+
+    #qrcode {
+      margin: 10px auto;
+      padding: 10px;
+      background-color: #fff;
+      width: fit-content;
+    }
   </style>
 </head>
 
@@ -86,8 +99,12 @@
     <h2>🏁 Inscripción de Participantes</h2>
     <label>Nombre del participante:</label>
     <input type="text" id="nombre" placeholder="Ej: Rodrigo Pérez" />
-    <button onclick="registrar()">Registrar y seguir</button>
+    <button onclick="registrar()">Registrar y generar QR</button>
     <div id="lista"></div>
+    <div id="qr-container">
+      <h3>📱 Escanea este código para vincular tu teléfono</h3>
+      <div id="qrcode"></div>
+    </div>
   </div>
 
   <!-- Pantalla de seguimiento -->
@@ -147,6 +164,18 @@
       box.innerHTML = `<strong>${id}</strong> - ${nombre}`;
       document.getElementById("lista").appendChild(box);
 
+      // Generar QR
+      const url = window.location.href.split('?')[0] + `?id=${id}`;
+      document.getElementById("qrcode").innerHTML = "";
+      new QRCode(document.getElementById("qrcode"), {
+        text: url,
+        width: 128,
+        height: 128,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+
       contador++;
       document.getElementById("nombre").value = "";
 
@@ -200,22 +229,4 @@
       const nombre = document.getElementById("hito-nombre").value;
       const lat = parseFloat(document.getElementById("hito-lat").value);
       const lon = parseFloat(document.getElementById("hito-lon").value);
-      if (!nombre || isNaN(lat) || isNaN(lon)) return;
-
-      hitos.push({ nombre, lat, lon });
-
-      L.circle([lat, lon], {
-        radius: 15,
-        color: "#ff0000",
-        fillColor: "#ff0000",
-        fillOpacity: 0.5,
-      }).bindPopup(nombre).addTo(map);
-
-      document.getElementById("hito-nombre").value = "";
-      document.getElementById("hito-lat").value = "";
-      document.getElementById("hito-lon").value = "";
-    }
-  </script>
-</body>
-
-</html>
+      if (!nombre || isNaN(lat) || isNaN
