@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="es">
 
 <head>
@@ -11,7 +11,7 @@
     body {
       margin: 0;
       font-family: 'Segoe UI', sans-serif;
-      background-color: #111;
+      background-color: #1c1c1c;
       color: #eee;
     }
 
@@ -35,26 +35,26 @@
     }
 
     nav {
-      background-color: #222;
+      background-color: #333;
       padding: 10px;
       display: flex;
       justify-content: center;
-      gap: 20px;
-      border-bottom: 2px solid #00ff99;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
     nav button {
-      background: none;
+      background-color: #ff6600;
       border: none;
-      color: #eee;
+      color: #fff;
       font-size: 1em;
       cursor: pointer;
-      padding: 5px 10px;
+      padding: 10px 20px;
+      border-radius: 5px;
     }
 
     nav button:hover {
-      color: #00ff99;
-      border-bottom: 2px solid #00ff99;
+      background-color: #e65c00;
     }
 
     .pantalla {
@@ -79,34 +79,34 @@
     }
 
     input {
-      background-color: #222;
+      background-color: #2c2c2c;
       color: #eee;
       border: 1px solid #555;
     }
 
     button {
-      background-color: #00ff99;
-      color: #111;
+      background-color: #ff6600;
+      color: #fff;
       font-weight: bold;
       cursor: pointer;
     }
 
     button:hover {
-      background-color: #00cc77;
+      background-color: #e65c00;
     }
 
     #map {
       height: 60vh;
       width: 100%;
       margin-top: 10px;
-      border: 2px solid #00ff99;
+      border: 2px solid #ff6600;
     }
 
     #panel {
-      background-color: #1a1a1a;
+      background-color: #2a2a2a;
       padding: 10px;
       margin-top: 10px;
-      border: 1px solid #333;
+      border: 1px solid #444;
       text-align: left;
     }
 
@@ -144,9 +144,6 @@
     <button onclick="registrar()">Registrar y generar QR</button>
     <div id="resultado"></div>
     <div id="qrcode"></div>
-    <div id="lista-inscritos">
-      <h3>Participantes inscritos:</h3>
-    </div>
   </div>
 
   <div id="pantalla-seguimiento" class="pantalla">
@@ -174,7 +171,7 @@
   <script>
     let contador = 1;
     const participantes = {};
-    const colores = ["#00ff99", "#ff4444", "#3399ff", "#ffcc00", "#cc66ff"];
+    const colores = ["#ff6600", "#ff944d", "#ffcc99", "#ff3300", "#cc5200"];
     const hitos = [];
     const map = L.map("map").setView([-33.4372, -70.6506], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -183,7 +180,11 @@
 
     function mostrarPantalla(id) {
       document.querySelectorAll(".pantalla").forEach(p => p.classList.remove("visible"));
-      document.getElementById("pantalla-" + id).classList.add("visible");
+      const pantalla = document.getElementById("pantalla-" + id);
+      pantalla.classList.add("visible");
+      if (id === "seguimiento") {
+        setTimeout(() => map.invalidateSize(), 300);
+      }
     }
 
     function registrar() {
@@ -222,11 +223,11 @@
         <div class="log-entry">📱 Escanea el código QR para vincular tu teléfono:</div>
       `;
 
-      const lista = document.getElementById("lista-inscritos");
-      const nuevo = document.createElement("div");
-      nuevo.className = "log-entry";
-      nuevo.textContent = `${id} - ${nombre}`;
-      lista.appendChild(nuevo);
+      const entry = document.createElement("div");
+      entry.className = "log-entry";
+      entry.id = `estado-${id}`;
+      entry.innerHTML = `🟠 <strong>${id}</strong> - ${nombre} | Estado: <em>Sin hitos alcanzados</em>`;
+      document.getElementById("log").appendChild(entry);
 
       document.getElementById("nombre").value = "";
       contador++;
@@ -246,10 +247,8 @@
             const d = distanciaMetros(lat, lon, hito.lat, hito.lon);
             if (d < 20 && !p.hitosCumplidos.has(hito.nombre)) {
               p.hitosCumplidos.add(hito.nombre);
-              const entry = document.createElement("div");
-              entry.className = "log-entry";
-              entry.innerHTML = `🏃 <strong>${id}</strong> (${p.nombre}) alcanzó <strong>${hito.nombre}</strong>`;
-              document.getElementById("log").appendChild(entry);
+              const estado = document.getElementById(`estado-${id}`);
+              estado.innerHTML = `🟢 <strong>${id}</strong> - ${p.nombre} | Estado: <em>Alcanzó ${hito.nombre}</em>`;
             }
           });
         },
@@ -283,8 +282,8 @@
 
       L.circle([lat, lon], {
         radius: 15,
-        color: "#ff0000",
-        fillColor: "#ff0000",
+        color: "#ff3300",
+        fillColor: "#ff3300",
         fillOpacity: 0.5,
       }).bindPopup(nombre).addTo(map);
 
@@ -293,12 +292,13 @@
       document.getElementById("hito-lon").value = "";
     }
 
-    // Detectar si hay un corredor activo por URL
     window.addEventListener("DOMContentLoaded", () => {
       const params = new URLSearchParams(window.location.search);
       const id = params.get("id");
       if (id) {
-        const color = "#00ff99";
+        mostrarPantalla("seguimiento");
+
+        const color = "#ff6600";
         const marker = L.circleMarker([0, 0], {
           radius: 10,
           color: color,
@@ -313,8 +313,13 @@
           hitosCumplidos: new Set(),
         };
 
+        const entry = document.createElement("div");
+        entry.className = "log-entry";
+        entry.id = `estado-${id}`;
+        entry.innerHTML = `🟠 <strong>${id}</strong> - ${id} | Estado: <em>Sin hitos alcanzados</em>`;
+        document.getElementById("log").appendChild(entry);
+
         iniciarGPS(id);
-        mostrarPantalla("seguimiento");
       }
     });
   </script>
