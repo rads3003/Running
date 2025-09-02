@@ -122,18 +122,6 @@
       padding: 10px;
       width: fit-content;
     }
-
-    .marcador-azul {
-      background-color: #007bff;
-      color: white;
-      font-weight: bold;
-      border-radius: 50%;
-      width: 30px;
-      height: 30px;
-      line-height: 30px;
-      text-align: center;
-      box-shadow: 0 0 5px #000;
-    }
   </style>
 </head>
 
@@ -153,7 +141,6 @@
   <div id="pantalla-registro" class="pantalla visible">
     <h2>Inscripción de Participantes</h2>
     <input type="text" id="nombre" placeholder="Nombre del participante" />
-    <input type="password" id="codigo" placeholder="Código de autorización" />
     <button onclick="registrar()">Registrar y generar QR</button>
     <div id="resultado"></div>
     <div id="qrcode"></div>
@@ -169,11 +156,7 @@
     <input type="text" id="hito-nombre" placeholder="Nombre del hito" />
     <input type="number" id="hito-lat" step="any" placeholder="Latitud" />
     <input type="number" id="hito-lon" step="any" placeholder="Longitud" />
-    <input type="password" id="hito-codigo" placeholder="Código de autorización" />
     <button onclick="agregarHito()">Agregar Hito</button>
-    <div id="lista-hitos">
-      <h3>Hitos agregados:</h3>
-    </div>
   </div>
 
   <div id="pantalla-panel" class="pantalla">
@@ -188,6 +171,7 @@
   <script>
     let contador = 1;
     const participantes = {};
+    const colores = ["#ff6600", "#ff944d", "#ffcc99", "#ff3300", "#cc5200"];
     const hitos = [];
     const map = L.map("map").setView([-33.4372, -70.6506], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -196,7 +180,8 @@
 
     function mostrarPantalla(id) {
       document.querySelectorAll(".pantalla").forEach(p => p.classList.remove("visible"));
-      document.getElementById("pantalla-" + id).classList.add("visible");
+      const pantalla = document.getElementById("pantalla-" + id);
+      pantalla.classList.add("visible");
       if (id === "seguimiento") {
         setTimeout(() => map.invalidateSize(), 300);
       }
@@ -204,37 +189,28 @@
 
     function registrar() {
       const nombre = document.getElementById("nombre").value.trim();
-      const codigo = document.getElementById("codigo").value.trim();
-      if (!nombre || codigo !== "300309") {
-        alert("Nombre vacío o código incorrecto.");
-        return;
-      }
+      if (!nombre) return;
 
       const id = "P" + String(contador).padStart(3, "0");
-      const icono = L.divIcon({
-        className: 'marcador-azul',
-        html: `<div class="marcador-azul">${id}</div>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15]
-      });
-
-      const marker = L.marker([0, 0], { icon: icono }).addTo(map).bindPopup(`${id} - ${nombre}`);
+      const color = colores[(contador - 1) % colores.length];
+      const marker = L.circleMarker([0, 0], {
+        radius: 10,
+        color: color,
+        fillColor: color,
+        fillOpacity: 0.9,
+      }).addTo(map).bindPopup(`${id} - ${nombre}`);
 
       participantes[id] = {
         nombre,
+        color,
         marker,
-        hitosCumplidos: new Set()
+        hitosCumplidos: new Set(),
       };
 
-      const entry = document.createElement("div");
-      entry.className = "log-entry";
-      entry.id = `estado-${id}`;
-      entry.innerHTML = `🟠 <strong>${id}</strong> - ${nombre} | Estado: <em>Sin hitos alcanzados</em>`;
-      document.getElementById("log").appendChild(entry);
-
+      const url = window.location.href.split('?')[0] + `?id=${id}`;
       document.getElementById("qrcode").innerHTML = "";
       new QRCode(document.getElementById("qrcode"), {
-        text: window.location.href.split('?')[0] + `?id=${id}`,
+        text: url,
         width: 128,
         height: 128,
         colorDark: "#000000",
@@ -247,9 +223,15 @@
         <div class="log-entry">📱 Escanea el código QR para vincular tu teléfono:</div>
       `;
 
+      const entry = document.createElement("div");
+      entry.className = "log-entry";
+      entry.id = `estado-${id}`;
+      entry.innerHTML = `🟠 <strong>${id}</strong> - ${nombre} | Estado: <em>Sin hitos alcanzados</em>`;
+      document.getElementById("log").appendChild(entry);
+
       document.getElementById("nombre").value = "";
-      document.getElementById("codigo").value = "";
       contador++;
+      iniciarGPS(id);
     }
 
     function iniciarGPS(id) {
@@ -258,26 +240,21 @@
           const lat = pos.coords.latitude;
           const lon = pos.coords.longitude;
           const p = participantes[id];
-          if (p && p.marker) {
-            p.marker.setLatLng([lat, lon]);
-            map.setView([lat, lon]);
-          }
+          p.marker.setLatLng([lat, lon]);
+          map.setView([lat, lon]);
 
           hitos.forEach((hito) => {
             const d = distanciaMetros(lat, lon, hito.lat, hito.lon);
             if (d < 20 && !p.hitosCumplidos.has(hito.nombre)) {
               p.hitosCumplidos.add(hito.nombre);
-              const total = p.hitosCumplidos.size;
               const estado = document.getElementById(`estado-${id}`);
-              if (estado) {
-                estado.innerHTML = `🟢 <strong>${id}</strong> - ${p.nombre} | Estado: <em>${String(total).padStart(2, "0")} hito${total > 1 ? "s" : ""} cumplido${total > 1 ? "s" : ""}</em>`;
-              }
-              const bip = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-              bip.play();
+              estado.innerHTML = `🟢 <strong>${id}</strong> - ${p.nombre} | Estado: <em>Alcanzó ${hito.nombre}</em>`;
             }
           });
         },
-        () => console.log("No se pudo obtener la ubicación."),
+        () => {
+          console.log("No se pudo obtener la ubicación.");
+        },
         { enableHighAccuracy: true }
       );
     }
@@ -299,11 +276,7 @@
       const nombre = document.getElementById("hito-nombre").value.trim();
       const lat = parseFloat(document.getElementById("hito-lat").value);
       const lon = parseFloat(document.getElementById("hito-lon").value);
-      const codigo = document.getElementById("hito-codigo").value.trim();
-      if (!nombre || isNaN(lat) || isNaN(lon) || codigo !== "300309") {
-        alert("Datos inválidos o código incorrecto.");
-        return;
-      }
+      if (!nombre || isNaN(lat) || isNaN(lon)) return;
 
       hitos.push({ nombre, lat, lon });
 
@@ -314,16 +287,9 @@
         fillOpacity: 0.5,
       }).bindPopup(nombre).addTo(map);
 
-      const lista = document.getElementById("lista-hitos");
-      const item = document.createElement("div");
-      item.className = "log-entry";
-      item.textContent = `${nombre} (${lat.toFixed(5)}, ${lon.toFixed(5)})`;
-      lista.appendChild(item);
-
       document.getElementById("hito-nombre").value = "";
       document.getElementById("hito-lat").value = "";
       document.getElementById("hito-lon").value = "";
-      document.getElementById("hito-codigo").value = "";
     }
 
     window.addEventListener("DOMContentLoaded", () => {
@@ -332,17 +298,19 @@
       if (id) {
         mostrarPantalla("seguimiento");
 
+        const color = "#ff6600";
         const marker = L.circleMarker([0, 0], {
           radius: 10,
-          color: "#ff0000",
-          fillColor: "#ff0000",
+          color: color,
+          fillColor: color,
           fillOpacity: 0.9,
         }).addTo(map).bindPopup(`${id} (activo)`);
 
         participantes[id] = {
           nombre: id,
+          color,
           marker,
-          hitosCumplidos: new Set()
+          hitosCumplidos: new Set(),
         };
 
         const entry = document.createElement("div");
