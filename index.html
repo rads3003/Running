@@ -299,12 +299,13 @@
         mostrarPantalla("seguimiento");
 
         const color = "#ff0000";
-        const marker = L.circleMarker([0, 0], {
-          radius: 10,
-          color: color,
-          fillColor: color,
-          fillOpacity: 0.9,
-        }).addTo(map).bindPopup(`${id} (activo)`);
+        const icono = L.divIcon({
+          className: 'marcador-azul',
+          html: `<div class="marcador-azul">${id}</div>`,
+          iconSize: [30, 30],
+          iconAnchor: [15, 15]
+        });
+const marker = L.marker([0, 0], { icon: icono }).addTo(map).bindPopup(`${id} - ${nombre}`);
 
         participantes[id] = {
           nombre: id,
