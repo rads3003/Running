@@ -282,8 +282,8 @@
 
       L.circle([lat, lon], {
         radius: 15,
-        color: "#ff3300",
-        fillColor: "#ff3300",
+        color: "#000099",
+        fillColor: "#000099",
         fillOpacity: 0.5,
       }).bindPopup(nombre).addTo(map);
 
@@ -298,7 +298,7 @@
       if (id) {
         mostrarPantalla("seguimiento");
 
-        const color = "#000099";
+        const color = "#ff0000";
         const marker = L.circleMarker([0, 0], {
           radius: 10,
           color: color,
